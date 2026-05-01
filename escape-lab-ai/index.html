@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>AI Arena Fighter</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div id="app">
+
+  <canvas id="gameCanvas"></canvas>
+  <button id="btn-menu-float" class="hidden">☰ MENU</button>
+
+  <!-- ══════════ MENU SCREEN ══════════ -->
+  <div id="menu-screen" class="screen">
+    <div class="game-title">
+      <div class="title-eyebrow">▶ CYBER ARENA ▶</div>
+      <div class="title-main">AI ARENA FIGHTER</div>
+      <div class="title-sub">FINITE STATE MACHINE</div>
+    </div>
+    <div class="menu-card">
+      <p class="menu-tagline">⚡ Battle Against Adaptive AI ⚡</p>
+      <div class="menu-buttons">
+        <button id="btn-play" class="btn-primary">▶&nbsp; PLAY GAME</button>
+        <button id="btn-info" class="btn-info-menu">ℹ&nbsp; CARA MAIN &amp; INFO</button>
+      </div>
+      <div class="menu-footer">WASD = Gerak &nbsp;|&nbsp; SPACE = Serang &nbsp;|&nbsp; Q = Potion</div>
+    </div>
+  </div>
+
+  <!-- ══════════ INFO SCREEN ══════════ -->
+  <div id="info-screen" class="screen hidden">
+    <div class="info-container">
+      <div class="info-title">ℹ AI ARENA FIGHTER — PANDUAN</div>
+
+      <!-- Tentang Game -->
+      <div class="info-section">
+        <h3>🎮 Tentang Game</h3>
+        <p>AI Arena Fighter adalah game pertarungan 1 vs 1 berbasis web di mana kamu (Player) bertarung melawan musuh yang dikendalikan oleh <strong style="color:#00d4ff">Artificial Intelligence (AI)</strong> menggunakan metode <strong style="color:#ffcc00">Finite State Machine (FSM)</strong>.</p>
+        <p style="margin-top:6px">Tujuan: Kalahkan semua Wave musuh, naikkan level, kumpulkan koin, dan beli item di Shop untuk semakin kuat!</p>
+      </div>
+
+      <!-- Kontrol -->
+      <div class="info-section">
+        <h3>⌨️ Kontrol Keyboard</h3>
+        <div class="info-controls">
+          <div class="ctrl-item"><span class="ctrl-key">W A S D</span><span class="ctrl-desc">Gerakkan karakter (bisa diagonal)</span></div>
+          <div class="ctrl-item"><span class="ctrl-key">↑←↓→</span><span class="ctrl-desc">Alternatif gerakan (Arrow Keys)</span></div>
+          <div class="ctrl-item"><span class="ctrl-key">SPACE</span><span class="ctrl-desc">Serang musuh (jika dalam jangkauan)</span></div>
+          <div class="ctrl-item"><span class="ctrl-key">J</span><span class="ctrl-desc">Alternatif Serang</span></div>
+          <div class="ctrl-item"><span class="ctrl-key">Q</span><span class="ctrl-desc">Gunakan HP Potion (pulihkan 40 HP)</span></div>
+          <div class="ctrl-item"><span class="ctrl-key">ESC</span><span class="ctrl-desc">Kembali ke Menu Utama</span></div>
+        </div>
+      </div>
+
+      <!-- Sistem AI FSM -->
+      <div class="info-section">
+        <h3>🤖 Sistem AI — Finite State Machine (FSM)</h3>
+        <p>Musuh memiliki 5 State dalam FSM yang menentukan perilakunya secara otomatis dan adaptif:</p>
+        <div class="fsm-diagram" style="margin:12px 0">
+          <span class="fsm-state" style="color:#aaa;border-color:#555">IDLE</span>
+          <span class="fsm-arrow">→</span>
+          <span class="fsm-state" style="color:#ffcc00;border-color:#ffcc0055">CHASE</span>
+          <span class="fsm-arrow">→</span>
+          <span class="fsm-state" style="color:#ff4444;border-color:#ff444455">ATTACK</span>
+          <span class="fsm-arrow">→</span>
+          <span class="fsm-state" style="color:#00ff88;border-color:#00ff8855">DODGE</span>
+          <span class="fsm-arrow">→</span>
+          <span class="fsm-state" style="color:#ffcc00;border-color:#ffcc0055">CHASE</span>
+          <span class="fsm-arrow">/ →</span>
+          <span class="fsm-state" style="color:#ff4444;border-color:#ff444455">DEAD</span>
+        </div>
+        <ul>
+          <li><strong style="color:#aaa">IDLE</strong> — Musuh diam menunggu; bobbing animasi. Aktif saat player jauh.</li>
+          <li><strong style="color:#ffcc00">CHASE</strong> — Musuh mengejar player ketika masuk radius deteksi.</li>
+          <li><strong style="color:#ff4444">ATTACK</strong> — Musuh menyerang saat sangat dekat dengan player.</li>
+          <li><strong style="color:#00ff88">DODGE</strong> — Musuh menghindar secara acak setelah menyerang (probabilistik).</li>
+          <li><strong style="color:#666">DEAD</strong> — Musuh mati, ledakan partikel, XP dan Koin di-drop.</li>
+        </ul>
+        <p style="margin-top:8px;color:rgba(150,190,255,.6);font-size:11px">State aktif musuh selalu ditampilkan di panel FSM (kanan bawah layar) secara real-time.</p>
+      </div>
+
+      <!-- Tipe Musuh -->
+      <div class="info-section">
+        <h3>👾 Tipe Musuh (Berdasarkan Wave)</h3>
+        <div class="enemy-types">
+          <div class="enemy-type-card" style="border-color:#cc220055">
+            <div class="etype-name" style="color:#ff5533">GRUNT</div>
+            <div class="etype-desc">Musuh standar. Wave 1–3. Seimbang antara HP, DMG, dan Speed.</div>
+          </div>
+          <div class="enemy-type-card" style="border-color:#cc00cc55">
+            <div class="etype-name" style="color:#ff44ff">SPEEDER</div>
+            <div class="etype-desc">Sangat cepat, HP rendah. Sering Dodge. Mulai Wave 3+.</div>
+          </div>
+          <div class="enemy-type-card" style="border-color:#cc660055">
+            <div class="etype-name" style="color:#ffcc44">TANK</div>
+            <div class="etype-desc">HP & DMG sangat tinggi, lambat. Jarang Dodge. Wave 4+.</div>
+          </div>
+          <div class="enemy-type-card" style="border-color:#00666655">
+            <div class="etype-name" style="color:#00ffee">PHANTOM</div>
+            <div class="etype-desc">Sangat sering Dodge. Licin dan sulit ditangkap. Wave 6+.</div>
+          </div>
+          <div class="enemy-type-card" style="border-color:#99000055">
+            <div class="etype-name" style="color:#ff3333">BERSERKER</div>
+            <div class="etype-desc">DMG sangat tinggi dan agresif. Sering menyerang. Wave 7+.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sistem Progres -->
+      <div class="info-section">
+        <h3>📈 Sistem Progres</h3>
+        <ul>
+          <li><strong style="color:#aa44ff">XP & Level</strong> — Kamu mendapat XP setiap mengalahkan musuh. Level naik → HP max, ATK, dan Speed meningkat.</li>
+          <li><strong style="color:#ffd700">Koin</strong> — Reward setelah menang. Digunakan untuk membeli item di Shop.</li>
+          <li><strong style="color:#00ff88">HP Potion (🧪)</strong> — Pulihkan 40 HP di tengah pertarungan (tekan Q).</li>
+          <li><strong style="color:#ff8844">ATK Module (⚔️)</strong> — Tambah +5 Attack Damage permanen.</li>
+          <li><strong style="color:#44ccff">Speed Chip (👟)</strong> — Tambah +0.6 Speed permanen.</li>
+          <li><strong style="color:#8888ff">Nano Shield (🛡️)</strong> — Blok 1 serangan berikutnya dari musuh.</li>
+        </ul>
+      </div>
+
+      <!-- Tips -->
+      <div class="info-section">
+        <h3>💡 Tips Bermain</h3>
+        <ul>
+          <li>Jaga jarak saat musuh dalam state ATTACK — mundur dulu, serang setelah ia Dodge.</li>
+          <li>Gunakan HP Potion (Q) sebelum HP habis, bukan saat sudah kritis.</li>
+          <li>Beli Speed Chip di Shop untuk lebih mudah menghindari musuh cepat.</li>
+          <li>TANK musuh lambat tapi DMG-nya besar — jangan biarkan ia menyerang.</li>
+          <li>PHANTOM sangat sering Dodge — bersabar dan serang di saat ia berhenti Chase.</li>
+        </ul>
+      </div>
+
+      <div class="info-footer">
+        <button id="btn-info-back" class="btn-primary">← KEMBALI KE MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ DIFFICULTY SELECT ══════════ -->
+  <div id="select-screen" class="screen hidden">
+    <div class="select-card">
+      <div class="select-title">⚙ PILIH KESULITAN</div>
+      <div class="diff-grid">
+        <button class="diff-btn" data-diff="easy">
+          <span class="diff-label">🟢</span>EASY
+          <span class="diff-desc">Musuh lambat &amp; jarang menyerang. Cocok untuk pemula.</span>
+        </button>
+        <button class="diff-btn active" data-diff="medium">
+          <span class="diff-label">🟡</span>MEDIUM
+          <span class="diff-desc">Seimbang. Musuh lebih agresif dan cepat.</span>
+        </button>
+        <button class="diff-btn" data-diff="hard">
+          <span class="diff-label">🔴</span>HARD
+          <span class="diff-desc">Musuh sangat cepat, agresif &amp; sering dodge.</span>
+        </button>
+      </div>
+      <div class="select-actions">
+        <button id="btn-back" class="btn-secondary">← BACK</button>
+        <button id="btn-start" class="btn-primary">MULAI BATTLE ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ GAME SCREEN ══════════ -->
+  <div id="game-screen" class="screen hidden"></div>
+
+  <!-- ══════════ SHOP SCREEN ══════════ -->
+  <div id="shop-screen" class="screen hidden">
+    <div class="shop-card">
+      <div class="shop-header">
+        <div>
+          <div class="shop-title">🛒 CYBER SHOP</div>
+          <div class="shop-wave-label" id="shop-wave">Sebelum Wave berikutnya</div>
+        </div>
+        <div class="shop-coins" id="shop-coins">Coins: 0 ¢</div>
+      </div>
+      <hr class="shop-divider"/>
+      <div id="shop-content"><!-- Items rendered by JS --></div>
+      <div class="shop-footer">
+        <button id="btn-shop-done" class="btn-primary">LANJUT KE WAVE BERIKUTNYA ▶</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<script src="input.js"></script>
+<script src="player.js"></script>
+<script src="enemy.js"></script>
+<script src="ui.js"></script>
+<script src="game.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
