@@ -210,7 +210,11 @@ const Save = {
   ownedItems: {},
   equippedSlots: [null, null],
   highScore: 0,
-  currentLevel: 1,
+  diffLevels: { easy: 1, medium: 1, hard: 1 },
+  selectedChar: 'striker',
+
+  get currentLevel() { return this.diffLevels[Settings ? Settings.difficulty : 'easy'] || 1; },
+  set currentLevel(v) { this.diffLevels[Settings ? Settings.difficulty : 'easy'] = v; },
 
   load() {
     try {
@@ -219,7 +223,8 @@ const Save = {
       this.ownedItems    = d.ownedItems    || {};
       this.equippedSlots = d.equippedSlots || [null, null];
       this.highScore     = d.highScore     || 0;
-      this.currentLevel  = d.currentLevel  || 1;
+      this.diffLevels    = d.diffLevels    || { easy: 1, medium: 1, hard: 1 };
+      this.selectedChar  = d.selectedChar  || 'striker';
     } catch(e) {}
   },
 
@@ -230,7 +235,8 @@ const Save = {
         ownedItems:    this.ownedItems,
         equippedSlots: this.equippedSlots,
         highScore:     this.highScore,
-        currentLevel:  this.currentLevel
+        diffLevels:    this.diffLevels,
+        selectedChar:  this.selectedChar
       }));
     } catch(e) {}
   },
@@ -250,6 +256,56 @@ const ITEMS = [
   { id: 'boots',         name: 'CYBER BOOTS',    icon: '👟', desc: 'Kecepatan gerak +25% permanen saat equipped.',                 price: 300, type: 'passive',     stat: { speedMult: 1.25 },       slot: 'passive' },
   { id: 'armor',         name: 'NANO ARMOR',     icon: '🦺', desc: 'Kurangi damage yang diterima sebesar 20%.',                    price: 400, type: 'passive',     stat: { defMult: 0.8 },          slot: 'passive' },
   { id: 'double_strike', name: 'DUAL STRIKE',    icon: '✦',  desc: 'Setiap serangan memiliki 30% chance untuk double hit.',        price: 500, type: 'passive',     stat: { doubleChance: 0.3 },     slot: 'passive' },
+];
+
+// ==============================================
+// CHARACTER DEFINITIONS
+// ==============================================
+const CHARACTERS = [
+  {
+    id: 'striker',
+    name: 'STRIKER',
+    icon: '⚔️',
+    tagline: 'Balanced fighter',
+    price: 0,    // free / default
+    colors: { body: '#0088cc', leg: '#005588', arm: '#006699', head: '#00aadd', visor: 'rgba(0,243,255,0.75)', glow: 'rgba(0,180,255,0.14)', trail: '#00f3ff' },
+    stats: { maxHp: 100, baseSpeed: 4, baseAttackDmg: 12, attackRange: 72, dashCooldownBase: 38, dashDuration: 12 },
+    desc: { hp: '●●●○○', spd: '●●●○○', dmg: '●●●○○', range: '●●●○○' },
+    special: null
+  },
+  {
+    id: 'tank',
+    name: 'TANK',
+    icon: '🛡️',
+    tagline: 'Tough & hard-hitting',
+    price: 300,
+    colors: { body: '#556600', leg: '#334400', arm: '#445500', head: '#667700', visor: 'rgba(180,255,0,0.75)', glow: 'rgba(120,180,0,0.16)', trail: '#aaff00' },
+    stats: { maxHp: 180, baseSpeed: 2.5, baseAttackDmg: 20, attackRange: 65, dashCooldownBase: 55, dashDuration: 10 },
+    desc: { hp: '●●●●●', spd: '●○○○○', dmg: '●●●●○', range: '●●○○○' },
+    special: 'Damage diterima -15% pasif'
+  },
+  {
+    id: 'speedster',
+    name: 'SPEEDSTER',
+    icon: '⚡',
+    tagline: 'Fast & agile',
+    price: 350,
+    colors: { body: '#770099', leg: '#440066', arm: '#660088', head: '#9900bb', visor: 'rgba(255,0,255,0.8)', glow: 'rgba(200,0,255,0.14)', trail: '#ff00ff' },
+    stats: { maxHp: 70, baseSpeed: 6.5, baseAttackDmg: 9, attackRange: 68, dashCooldownBase: 18, dashDuration: 18 },
+    desc: { hp: '●●○○○', spd: '●●●●●', dmg: '●●○○○', range: '●●●○○' },
+    special: 'Dash 2× lebih cepat & pendek cooldown'
+  },
+  {
+    id: 'mage',
+    name: 'MAGE',
+    icon: '🔮',
+    tagline: 'Long-range burst damage',
+    price: 400,
+    colors: { body: '#880033', leg: '#550022', arm: '#770028', head: '#aa0044', visor: 'rgba(255,100,200,0.8)', glow: 'rgba(255,50,150,0.14)', trail: '#ff66cc' },
+    stats: { maxHp: 75, baseSpeed: 3.5, baseAttackDmg: 22, attackRange: 120, dashCooldownBase: 45, dashDuration: 10 },
+    desc: { hp: '●●○○○', spd: '●●○○○', dmg: '●●●●●', range: '●●●●●' },
+    special: 'Attack range sangat jauh, burst damage tinggi'
+  }
 ];
 
 // ==============================================
@@ -283,7 +339,7 @@ const Game = {
 
   resize() {
     const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    const mobileControlH = isMobile ? 168 : 0;
+    const mobileControlH = isMobile ? 188 : 0;
     const mw = Math.min(window.innerWidth - 10, 900);
     const mh = Math.min(window.innerHeight - 110 - mobileControlH, 520);
     if (this.canvas) { this.canvas.width = mw; this.canvas.height = Math.max(mh, 220); }
@@ -295,6 +351,9 @@ const Game = {
     this.running = true; this.startTime = Date.now(); this.particles = [];
     const cw = this.canvas.width, ch = this.canvas.height;
     this.player = new Player(90, ch - 145, cw, ch);
+    // Apply selected character base stats
+    const charDef = CHARACTERS.find(c => c.id === Save.selectedChar) || CHARACTERS[0];
+    this.player.applyCharacter(charDef);
     this.player.applyEquipment();
     this.player.itemUseCounts = {};
     this.enemy = new Enemy(cw - 130, ch - 145, cw, ch, diff, level);
@@ -524,8 +583,8 @@ const Game = {
     Save.addCoins(cr);
     if (this.player.score > Save.highScore) { Save.highScore = this.player.score; Save.save(); }
 
-    if (won && this.currentLevel >= Save.currentLevel) {
-      Save.currentLevel = this.currentLevel + 1;
+    if (won && this.currentLevel >= Save.diffLevels[Settings.difficulty]) {
+      Save.diffLevels[Settings.difficulty] = this.currentLevel + 1;
       Save.save();
     }
 

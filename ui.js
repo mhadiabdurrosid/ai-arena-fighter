@@ -13,6 +13,8 @@ function updateCoinDisplays() {
   document.getElementById('menu-coins').textContent = Save.coins;
   const sd = document.getElementById('shop-coins-disp');
   if (sd) sd.textContent = Save.coins;
+  const cd = document.getElementById('char-coins-disp');
+  if (cd) cd.textContent = Save.coins;
 }
 
 // ==============================================
@@ -26,10 +28,63 @@ function showScreen(id) {
 function showMenu() {
   showScreen('menu-screen');
   updateCoinDisplays();
-  const lvl = Save.currentLevel || 1;
-  document.getElementById('btn-play').textContent = `▶ PLAY  —  LVL ${lvl}`;
+  const diff = Settings.difficulty;
+  const lvl  = Save.diffLevels[diff] || 1;
+  const diffLabel = { easy: 'EASY', medium: 'MED', hard: 'HARD' }[diff];
+  document.getElementById('btn-play').textContent = `▶ PLAY  —  ${diffLabel} LVL ${lvl}`;
+  // Show selected char on play button area
+  const charDef = CHARACTERS.find(c => c.id === Save.selectedChar) || CHARACTERS[0];
+  document.getElementById('menu-char-badge').textContent = `${charDef.icon} ${charDef.name}`;
   AudioEngine.stopMusic();
   AudioEngine.startMusic();
+}
+
+// ==============================================
+// CHARACTER SELECT UI
+// ==============================================
+function renderCharSelect() {
+  const grid = document.getElementById('char-grid');
+  grid.innerHTML = '';
+  CHARACTERS.forEach(char => {
+    const owned    = char.price === 0 || Save.ownedItems['char_' + char.id];
+    const selected = Save.selectedChar === char.id;
+    const cantAfford = !owned && Save.coins < char.price;
+    const div = document.createElement('div');
+    div.className = 'char-card' + (selected ? ' selected' : '') + (cantAfford ? ' cantafford' : '');
+    div.innerHTML = `
+      <div class="char-icon">${char.icon}</div>
+      <div class="char-name">${char.name}</div>
+      <div class="char-tag">${char.tagline}</div>
+      <div class="char-bars">
+        <div class="bar-row"><span>HP</span><span class="bar-dots">${char.desc.hp}</span></div>
+        <div class="bar-row"><span>SPD</span><span class="bar-dots">${char.desc.spd}</span></div>
+        <div class="bar-row"><span>DMG</span><span class="bar-dots">${char.desc.dmg}</span></div>
+        <div class="bar-row"><span>RNG</span><span class="bar-dots">${char.desc.range}</span></div>
+      </div>
+      ${char.special ? `<div class="char-special">★ ${char.special}</div>` : ''}
+      <div class="char-price">${owned ? (selected ? '✓ ACTIVE' : 'SELECT') : '◈ ' + char.price + ' CR'}</div>
+      ${selected ? '<div class="char-badge active">ACTIVE</div>' : owned ? '<div class="char-badge owned">OWNED</div>' : ''}
+    `;
+    div.addEventListener('click', () => charSelectAction(char));
+    grid.appendChild(div);
+  });
+}
+
+function charSelectAction(char) {
+  AudioEngine.resume();
+  const owned = char.price === 0 || Save.ownedItems['char_' + char.id];
+  if (!owned) {
+    if (Save.coins < char.price) { showNotif('NOT ENOUGH CREDITS', 'warn'); return; }
+    Save.coins -= char.price;
+    Save.ownedItems['char_' + char.id] = true;
+    Save.save(); updateCoinDisplays();
+    showNotif(`${char.name} UNLOCKED!`, 'success');
+    AudioEngine.useItem('heal');
+  }
+  Save.selectedChar = char.id;
+  Save.save();
+  showNotif(`${char.icon} ${char.name} SELECTED`, 'success');
+  renderCharSelect();
 }
 
 // ==============================================
@@ -125,6 +180,10 @@ document.querySelectorAll('.diff-btn2').forEach(b => {
   b.addEventListener('click', () => {
     document.querySelectorAll('.diff-btn2').forEach(x => x.classList.remove('active'));
     b.classList.add('active'); Settings.difficulty = b.dataset.d;
+    // refresh play button so level shown matches selected difficulty
+    const lvl = Save.diffLevels[Settings.difficulty] || 1;
+    const diffLabel = { easy: 'EASY', medium: 'MED', hard: 'HARD' }[Settings.difficulty];
+    document.getElementById('btn-play').textContent = `▶ PLAY  —  ${diffLabel} LVL ${lvl}`;
   });
 });
 
@@ -146,6 +205,10 @@ document.getElementById('btn-play').addEventListener('click', () => {
 
 document.getElementById('btn-shop').addEventListener('click', () => {
   AudioEngine.resume(); renderShop(); showScreen('shop-screen');
+});
+
+document.getElementById('btn-char').addEventListener('click', () => {
+  AudioEngine.resume(); renderCharSelect(); showScreen('char-screen');
 });
 
 document.getElementById('btn-info').addEventListener('click', () => { showScreen('info-screen'); });

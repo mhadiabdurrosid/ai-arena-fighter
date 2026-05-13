@@ -221,6 +221,39 @@ body::before {
   color: var(--neon-blue); padding: 1px 7px; font-size: .65rem; margin: 0 2px;
 }
 
+/* ===== CHARACTER SELECT ===== */
+.char-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  max-width: 560px; width: 92%; max-height: 56vh; overflow-y: auto; padding-right: 4px;
+}
+.char-grid::-webkit-scrollbar { width: 4px; }
+.char-grid::-webkit-scrollbar-track { background: transparent; }
+.char-grid::-webkit-scrollbar-thumb { background: rgba(0,243,255,.3); border-radius: 2px; }
+
+.char-card {
+  border: 1px solid rgba(0,243,255,.2); background: rgba(0,15,30,.7);
+  padding: 14px 12px; cursor: pointer; transition: all .2s; position: relative;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.char-card:hover    { border-color: rgba(0,243,255,.5); background: rgba(0,25,50,.8); }
+.char-card.selected { border-color: var(--neon-green); background: rgba(0,40,25,.7); box-shadow: var(--glow-green); }
+.char-card.cantafford { opacity: .5; cursor: not-allowed; }
+
+.char-icon  { font-size: 2rem; line-height: 1; }
+.char-name  { font-family: 'Orbitron', sans-serif; font-size: .65rem; color: #fff; letter-spacing: .15em; font-weight: 700; }
+.char-tag   { font-size: .57rem; color: rgba(255,255,255,.45); margin-bottom: 4px; }
+
+.char-bars  { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
+.bar-row    { display: flex; justify-content: space-between; align-items: center; font-size: .55rem; }
+.bar-row span:first-child { color: rgba(255,255,255,.4); width: 28px; letter-spacing: .1em; }
+.bar-dots   { color: var(--neon-blue); letter-spacing: 1px; }
+
+.char-special { font-size: .55rem; color: var(--neon-yellow); line-height: 1.4; border-top: 1px solid rgba(255,238,0,.15); padding-top: 4px; }
+.char-price   { font-size: .6rem; color: var(--neon-yellow); margin-top: 4px; }
+.char-badge   { position: absolute; top: 6px; right: 6px; font-size: .48rem; padding: 2px 6px; letter-spacing: .1em; }
+.char-badge.owned  { background: rgba(0,243,255,.1);  border: 1px solid var(--neon-blue);  color: var(--neon-blue); }
+.char-badge.active { background: rgba(0,255,136,.2);  border: 1px solid var(--neon-green); color: var(--neon-green); }
+
 /* ===== SHOP ===== */
 .shop-grid {
   display: grid; grid-template-columns: repeat(2,1fr); gap: 12px;
@@ -284,7 +317,7 @@ body::before {
 .ai-row.lit { color: var(--neon-yellow); text-shadow: 0 0 6px #ffee00; }
 .ai-row span { margin-right: 6px; }
 
-/* Item slots */
+/* Item slots — desktop only, overlay above canvas bottom-left */
 #item-slots {
   position: absolute; bottom: 88px; left: 14px;
   display: flex; gap: 8px; z-index: 5;
@@ -385,60 +418,76 @@ canvas { display: block; }
 /* ===== MOBILE CONTROLS ===== */
 #mobile-controls {
   display: none; position: fixed; bottom: 0; left: 0; right: 0;
-  height: 160px; z-index: 50; pointer-events: none;
+  height: 180px; z-index: 50; pointer-events: none;
   user-select: none; -webkit-user-select: none;
+  /* subtle dark bg so controls are visible */
+  background: linear-gradient(transparent, rgba(0,0,0,0.45));
 }
 #joystick-zone {
-  position: absolute; bottom: 16px; left: 16px;
-  width: 130px; height: 130px; pointer-events: all;
+  position: absolute; bottom: 20px; left: 20px;
+  width: 140px; height: 140px; pointer-events: all;
 }
 #joystick-base {
   position: absolute; inset: 0; border-radius: 50%;
-  background: rgba(0,243,255,.06); border: 2px solid rgba(0,243,255,.2);
+  background: rgba(0,243,255,.08); border: 2px solid rgba(0,243,255,.25);
   animation: joystick-pulse 2s infinite;
 }
 #joystick-knob {
-  position: absolute; width: 50px; height: 50px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, rgba(0,243,255,.5), rgba(0,100,180,.4));
-  border: 2px solid rgba(0,243,255,.6); box-shadow: 0 0 10px rgba(0,243,255,.4);
+  position: absolute; width: 56px; height: 56px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(0,243,255,.6), rgba(0,100,180,.5));
+  border: 2px solid rgba(0,243,255,.7); box-shadow: 0 0 12px rgba(0,243,255,.5);
   top: 50%; left: 50%; transform: translate(-50%,-50%); transition: none;
 }
 #action-btns {
-  position: absolute; bottom: 16px; right: 16px;
-  display: flex; flex-direction: column; gap: 10px; pointer-events: all;
+  position: absolute; bottom: 20px; right: 20px;
+  display: flex; flex-direction: column; gap: 12px; pointer-events: all;
 }
 .mob-btn {
-  width: 64px; height: 64px; border-radius: 50%; border: 2px solid;
+  width: 72px; height: 72px; border-radius: 50%; border: 2px solid;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   cursor: pointer; font-family: 'Orbitron', sans-serif;
   font-size: .5rem; letter-spacing: .08em; font-weight: 700;
   -webkit-tap-highlight-color: transparent; transition: transform .08s, background .08s;
 }
-.mob-btn:active { transform: scale(.9); }
-#btn-mob-atk { border-color: var(--neon-blue); background: rgba(0,243,255,.12); color: var(--neon-blue); box-shadow: 0 0 12px rgba(0,243,255,.3); }
-#btn-mob-atk .mob-icon { font-size: 1.4rem; line-height: 1; }
-#btn-mob-dash { border-color: var(--neon-yellow); background: rgba(255,238,0,.1); color: var(--neon-yellow); box-shadow: 0 0 10px rgba(255,238,0,.2); }
+.mob-btn:active { transform: scale(.88); }
+#btn-mob-atk {
+  border-color: var(--neon-blue); background: rgba(0,243,255,.15);
+  color: var(--neon-blue); box-shadow: 0 0 14px rgba(0,243,255,.4);
+  /* Make ATK visually prominent */
+  width: 78px; height: 78px;
+}
+#btn-mob-atk .mob-icon { font-size: 1.6rem; line-height: 1; }
+#btn-mob-dash {
+  border-color: var(--neon-yellow); background: rgba(255,238,0,.12);
+  color: var(--neon-yellow); box-shadow: 0 0 10px rgba(255,238,0,.25);
+}
 #btn-mob-dash .mob-icon { font-size: 1.2rem; line-height: 1; }
+
+/* Item buttons — between joystick and ATK, bottom center */
 #item-row-btns {
-  position: absolute; bottom: 100px; right: 16px;
-  display: flex; gap: 8px; pointer-events: all;
+  position: absolute; bottom: 24px;
+  /* Center horizontally between joystick-zone right edge and action-btns left edge */
+  left: 50%; transform: translateX(-50%);
+  display: flex; gap: 12px; pointer-events: all;
 }
 .mob-item-btn {
-  width: 52px; height: 52px; border-radius: 8px;
-  border: 1px solid rgba(0,243,255,.35); background: rgba(0,15,30,.8);
+  width: 58px; height: 58px; border-radius: 10px;
+  border: 1px solid rgba(0,243,255,.4); background: rgba(0,15,30,.85);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   cursor: pointer; font-family: 'Orbitron', sans-serif;
   font-size: .45rem; color: rgba(0,243,255,.7);
   -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 0 8px rgba(0,243,255,.05);
 }
-.mob-item-btn:active { transform: scale(.9); background: rgba(0,243,255,.15); }
-.mob-item-btn .m-icon { font-size: 1.2rem; line-height: 1; }
+.mob-item-btn:active { transform: scale(.9); background: rgba(0,243,255,.18); }
+.mob-item-btn .m-icon { font-size: 1.3rem; line-height: 1; margin-bottom: 1px; }
 .mob-item-btn.on-cd { opacity: .45; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px), (pointer: coarse) {
   #mobile-controls { display: block; }
-  #item-slots { bottom: 172px !important; }
+  /* Hide desktop item-slots on mobile — use #item-row-btns inside mobile-controls instead */
+  #item-slots { display: none !important; }
   #ai-monitor { display: none !important; }
   body { overflow: hidden; }
   .menu-nav { width: 260px; }

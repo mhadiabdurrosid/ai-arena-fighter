@@ -71,7 +71,7 @@ const MobileInput = {
 
     setupBtn('btn-mob-atk',
       () => { Input.keys['Space'] = true; Input.just['Space'] = true; },
-      () => { Input.keys['Space'] = false; }
+      () => { Input.keys['Space'] = false; Input.just['Space'] = false; }
     );
     setupBtn('btn-mob-dash',
       () => { Input.just['ShiftLeft'] = true; },

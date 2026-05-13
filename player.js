@@ -58,6 +58,7 @@ class Player {
     this.maxHp = 100; this.hp = 100;
     this.baseSpeed = 4; this.speed = 4;
     this.isDashing = false; this.dashTimer = 0; this.dashCooldown = 0;
+    this.dashDuration = 12; this.dashCooldownBase = 38;
     this.isAttacking = false; this.attackTimer = 0; this.attackCooldown = 0;
     this.attackRange = 72; this.baseAttackDmg = 12; this.attackDmg = 12;
     this.facingRight = true;
@@ -75,10 +76,32 @@ class Player {
     this.weapon = null; this.swordAngle = 0;
     // Passives
     this.speedMult = 1; this.defMult = 1; this.dmgMult = 1; this.doubleChance = 0;
+    // Character appearance & special
+    this.charId = 'striker';
+    this.charColors = CHARACTERS[0].colors;
+    this.charSpecial = null;
   }
 
   get cx() { return this.x + this.w / 2; }
   get cy() { return this.y + this.h / 2; }
+
+  applyCharacter(charDef) {
+    this.charId      = charDef.id;
+    this.charColors  = charDef.colors;
+    this.charSpecial = charDef.special;
+    const s = charDef.stats;
+    this.maxHp           = s.maxHp;
+    this.hp              = s.maxHp;
+    this.baseSpeed       = s.baseSpeed;
+    this.speed           = s.baseSpeed;
+    this.baseAttackDmg   = s.baseAttackDmg;
+    this.attackDmg       = s.baseAttackDmg;
+    this.attackRange     = s.attackRange;
+    this.dashCooldownBase = s.dashCooldownBase;
+    this.dashDuration    = s.dashDuration;
+    // Tank passive: -15% damage taken
+    if (charDef.id === 'tank') this.defMult = 0.85;
+  }
 
   applyEquipment() {
     const w = Save.equippedSlots[0] ? ITEMS.find(i => i.id === Save.equippedSlots[0]) : null;
@@ -125,7 +148,7 @@ class Player {
       if (Input.isDown('KeyW') || Input.isDown('ArrowUp'))    my -= this.speed;
       if (Input.isDown('KeyS') || Input.isDown('ArrowDown'))  my += this.speed;
       if (Input.wasPressed('ShiftLeft') && this.dashCooldown <= 0) {
-        this.isDashing = true; this.dashTimer = 12; this.dashCooldown = 38;
+        this.isDashing = true; this.dashTimer = this.dashDuration; this.dashCooldown = this.dashCooldownBase;
         AudioEngine.dash();
       }
     }
@@ -135,7 +158,8 @@ class Player {
       this.swordAngle = Math.sin((18 - this.attackTimer) * 0.25) * 1.8 - 0.3;
       if (this.attackTimer <= 0) { this.isAttacking = false; this.swordAngle = 0; }
     }
-    if (Input.wasPressed('Space') && this.attackCooldown <= 0) {
+    // Use isDown so mobile touchstart hold works; attackCooldown prevents spam
+    if ((Input.wasPressed('Space') || Input.isDown('Space')) && this.attackCooldown <= 0) {
       this.isAttacking = true; this.attackTimer = 18; this.attackCooldown = 20;
       AudioEngine.swoosh();
     }
@@ -187,6 +211,7 @@ class Player {
 
   draw(ctx) {
     const cx = this.cx, cy = this.cy;
+    const C = this.charColors; // shorthand
     ctx.save();
     ctx.translate(cx, cy);
     if (!this.facingRight) ctx.scale(-1, 1);
@@ -217,65 +242,92 @@ class Player {
 
     // Body glow
     const bg = ctx.createRadialGradient(0, 0, 4, 0, 0, 30);
-    bg.addColorStop(0, this.rageActive ? 'rgba(255,136,0,0.18)' : 'rgba(0,180,255,0.14)');
+    bg.addColorStop(0, this.rageActive ? 'rgba(255,136,0,0.18)' : C.glow);
     bg.addColorStop(1, 'transparent');
     ctx.fillStyle = bg; ctx.fillRect(-24, -32, 48, 64);
 
+    // TANK: wider body shape
+    const bodyW = this.charId === 'tank' ? 18 : 14;
+    const bodyH = this.charId === 'tank' ? 30 : 26;
+
     // Legs
     const legOff = Math.sin(this.walkCycle) * 6;
-    ctx.fillStyle = this.rageActive ? '#774400' : '#005588';
+    ctx.fillStyle = this.rageActive ? '#774400' : C.leg;
     ctx.fillRect(-12, 10, 10, 20 + legOff);
-    ctx.fillRect(2, 10, 10, 20 - legOff);
+    ctx.fillRect(2,  10, 10, 20 - legOff);
     // Boots
     if (Save.ownedItems['boots']) {
       ctx.fillStyle = '#00cc88';
       ctx.fillRect(-13, 26 + legOff, 11, 5);
-      ctx.fillRect(1, 26 - legOff, 11, 5);
+      ctx.fillRect(1,   26 - legOff, 11, 5);
     }
 
     // Body
-    const bodyColor = flash ? '#ffffff' : this.rageActive ? '#cc4400' : '#0088cc';
-    ctx.fillStyle = bodyColor; ctx.fillRect(-14, -16, 28, 26);
+    const bodyColor = flash ? '#ffffff' : this.rageActive ? '#cc4400' : C.body;
+    ctx.fillStyle = bodyColor; ctx.fillRect(-bodyW, -16, bodyW * 2, bodyH);
     // Armor overlay
     if (Save.ownedItems['armor']) {
-      ctx.fillStyle = 'rgba(150,150,255,0.25)'; ctx.fillRect(-14, -16, 28, 26);
+      ctx.fillStyle = 'rgba(150,150,255,0.25)'; ctx.fillRect(-bodyW, -16, bodyW * 2, bodyH);
       ctx.strokeStyle = 'rgba(150,150,255,0.5)'; ctx.lineWidth = 1;
-      ctx.strokeRect(-14, -16, 28, 26);
+      ctx.strokeRect(-bodyW, -16, bodyW * 2, bodyH);
     }
-    // Chest detail
-    const cc = this.rageActive ? 'rgba(255,150,0,0.5)' : 'rgba(0,243,255,0.45)';
+    // Chest detail lines
+    const cc = this.rageActive ? 'rgba(255,150,0,0.5)' : C.visor.replace('0.75','0.45').replace('0.8','0.45');
     ctx.fillStyle = cc; ctx.fillRect(-7, -12, 14, 3); ctx.fillRect(-7, -6, 14, 3);
+
+    // MAGE: robe flair at bottom
+    if (this.charId === 'mage') {
+      ctx.fillStyle = C.body + 'aa';
+      ctx.beginPath();
+      ctx.moveTo(-bodyW, 10); ctx.lineTo(-bodyW - 6, 22); ctx.lineTo(bodyW + 6, 22); ctx.lineTo(bodyW, 10);
+      ctx.closePath(); ctx.fill();
+    }
 
     // Left arm
     ctx.save(); ctx.translate(-17, -10); ctx.rotate(0.2);
-    ctx.fillStyle = this.rageActive ? '#993300' : '#006699';
+    ctx.fillStyle = this.rageActive ? '#993300' : C.arm;
     ctx.fillRect(-4, 0, 8, 17); ctx.restore();
 
-    // Right arm + SWORD
+    // Right arm + weapon
     ctx.save(); ctx.translate(17, -10); ctx.rotate(this.swordAngle - 0.2);
-    ctx.fillStyle = this.rageActive ? '#993300' : '#006699';
+    ctx.fillStyle = this.rageActive ? '#993300' : C.arm;
     ctx.fillRect(-4, 0, 8, 17);
-    this._drawSword(ctx, 0, 17);
+    this._drawWeapon(ctx, 0, 17);
     if (this.isAttacking) {
-      ctx.fillStyle = this.rageActive ? 'rgba(255,150,0,0.6)' : 'rgba(0,243,255,0.55)';
+      ctx.fillStyle = this.rageActive ? 'rgba(255,150,0,0.6)' : C.visor.replace('0.75','0.55').replace('0.8','0.55');
       ctx.beginPath(); ctx.arc(0, 28, 14, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
 
     // Head
-    ctx.fillStyle = flash ? '#ffffff' : this.rageActive ? '#cc3300' : '#00aadd';
-    ctx.fillRect(-11, -32, 22, 18);
+    const headW = this.charId === 'tank' ? 13 : 11;
+    ctx.fillStyle = flash ? '#ffffff' : this.rageActive ? '#cc3300' : C.head;
+    ctx.fillRect(-headW, -32, headW * 2, 18);
     // Visor
-    ctx.fillStyle = this.rageActive ? 'rgba(255,100,0,0.8)' : 'rgba(0,243,255,0.75)';
-    ctx.fillRect(-9, -28, 18, 6);
-    ctx.fillStyle = this.rageActive ? 'rgba(255,150,0,0.3)' : 'rgba(0,243,255,0.25)';
-    ctx.fillRect(-9, -28, 18, 6);
+    ctx.fillStyle = this.rageActive ? 'rgba(255,100,0,0.8)' : C.visor;
+    ctx.fillRect(-headW + 2, -28, (headW - 2) * 2, 6);
+    // SPEEDSTER: antenna
+    if (this.charId === 'speedster') {
+      ctx.strokeStyle = C.visor; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -32); ctx.lineTo(0, -42); ctx.stroke();
+      ctx.fillStyle = C.visor;
+      ctx.beginPath(); ctx.arc(0, -43, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    // MAGE: pointy hat
+    if (this.charId === 'mage') {
+      ctx.fillStyle = C.body;
+      ctx.beginPath();
+      ctx.moveTo(-headW, -32); ctx.lineTo(headW, -32); ctx.lineTo(4, -50); ctx.lineTo(-4, -50);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = C.visor; ctx.lineWidth = 1;
+      ctx.stroke();
+    }
 
     // Dash trail
     if (this.isDashing) {
       for (let i = 1; i <= 4; i++) {
         ctx.globalAlpha = 0.07 * (5 - i);
-        ctx.fillStyle = this.rageActive ? '#ff8800' : '#00f3ff';
+        ctx.fillStyle = this.rageActive ? '#ff8800' : C.trail;
         ctx.fillRect(-14 + i * 5 * (!this.facingRight ? 1 : -1), -16, 28, 26);
       }
     }
@@ -288,13 +340,13 @@ class Player {
       if (!this.facingRight) ctx.scale(-1, 1);
       const prog = 1 - this.attackTimer / 18;
       ctx.beginPath(); ctx.arc(0, 0, this.attackRange, -0.7 + prog * 0.5, 0.7 - prog * 0.5);
-      const ac = this.rageActive ? `rgba(255,136,0,${0.2 + prog * 0.3})` : `rgba(0,243,255,${0.2 + prog * 0.3})`;
+      const ac = this.rageActive ? `rgba(255,136,0,${0.2 + prog * 0.3})` : C.trail + (prog > 0.5 ? '88' : '44');
       ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.stroke();
       ctx.restore();
     }
   }
 
-  _drawSword(ctx, x, y) {
+  _drawWeapon(ctx, x, y) {
     const wid = this.weapon;
     const baseColor  = wid?.id === 'sword_fire' ? '#ff4400' : wid?.id === 'sword_blue' ? '#00aaff' : '#8888aa';
     const glowColor  = wid?.id === 'sword_fire' ? '#ff8800' : wid?.id === 'sword_blue' ? '#00f3ff' : '#aaaacc';

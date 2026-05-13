@@ -22,10 +22,21 @@
   </div>
   <div class="menu-nav">
     <button class="menu-btn" id="btn-play">▶ PLAY GAME</button>
+    <div id="menu-char-badge" style="text-align:center;font-family:'Orbitron',sans-serif;font-size:.6rem;letter-spacing:.2em;color:rgba(0,243,255,.5);margin-top:-4px;margin-bottom:2px;">⚔️ STRIKER</div>
+    <button class="menu-btn red"    id="btn-char">◉ SELECT CHARACTER</button>
     <button class="menu-btn purple" id="btn-shop">◈ ITEM SHOP</button>
     <button class="menu-btn green"  id="btn-info">? INFO &amp; HOW TO PLAY</button>
     <button class="menu-btn"        id="btn-settings">⚙ SETTINGS</button>
   </div>
+</div>
+
+<!-- ===== CHARACTER SELECT ===== -->
+<div id="char-screen" class="subscreen hidden">
+  <div class="sub-title">SELECT CHARACTER</div>
+  <div class="sub-line"></div>
+  <div class="shop-coins">◈ <span id="char-coins-disp">0</span> CREDITS</div>
+  <div class="char-grid" id="char-grid"></div>
+  <button class="back-btn" onclick="showMenu()">◀ BACK</button>
 </div>
 
 <!-- ===== SETTINGS ===== -->
