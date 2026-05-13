@@ -1,197 +1,224 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Arena Fighter</title>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="app">
 
-  <canvas id="gameCanvas"></canvas>
-  <button id="btn-menu-float" class="hidden">☰ MENU</button>
+<div id="notif"></div>
 
-  <!-- ══════════ MENU SCREEN ══════════ -->
-  <div id="menu-screen" class="screen">
-    <div class="game-title">
-      <div class="title-eyebrow">▶ CYBER ARENA ▶</div>
-      <div class="title-main">AI ARENA FIGHTER</div>
-      <div class="title-sub">FINITE STATE MACHINE</div>
-    </div>
-    <div class="menu-card">
-      <p class="menu-tagline">⚡ Battle Against Adaptive AI ⚡</p>
-      <div class="menu-buttons">
-        <button id="btn-play" class="btn-primary">▶&nbsp; PLAY GAME</button>
-        <button id="btn-info" class="btn-info-menu">ℹ&nbsp; CARA MAIN &amp; INFO</button>
-      </div>
-      <div class="menu-footer">WASD = Gerak &nbsp;|&nbsp; SPACE = Serang &nbsp;|&nbsp; Q = Potion</div>
-    </div>
+<!-- ===== MENU ===== -->
+<div id="menu-screen" class="screen">
+  <div class="particles" id="particles"></div>
+  <div class="coin-display"><span class="coin-icon">◈</span><span id="menu-coins">0</span> CR</div>
+  <div class="logo-wrap">
+    <div class="logo-title">AI ARENA<br>FIGHTER</div>
+    <div class="logo-line"></div>
+    <div class="logo-sub">Cyber Combat System v2.0</div>
+    <div class="ai-badge">◈ FSM AI ENGINE ◈</div>
   </div>
+  <div class="menu-nav">
+    <button class="menu-btn" id="btn-play">▶ PLAY GAME</button>
+    <button class="menu-btn purple" id="btn-shop">◈ ITEM SHOP</button>
+    <button class="menu-btn green"  id="btn-info">? INFO &amp; HOW TO PLAY</button>
+    <button class="menu-btn"        id="btn-settings">⚙ SETTINGS</button>
+  </div>
+</div>
 
-  <!-- ══════════ INFO SCREEN ══════════ -->
-  <div id="info-screen" class="screen hidden">
-    <div class="info-container">
-      <div class="info-title">ℹ AI ARENA FIGHTER — PANDUAN</div>
-
-      <!-- Tentang Game -->
-      <div class="info-section">
-        <h3>🎮 Tentang Game</h3>
-        <p>AI Arena Fighter adalah game pertarungan 1 vs 1 berbasis web di mana kamu (Player) bertarung melawan musuh yang dikendalikan oleh <strong style="color:#00d4ff">Artificial Intelligence (AI)</strong> menggunakan metode <strong style="color:#ffcc00">Finite State Machine (FSM)</strong>.</p>
-        <p style="margin-top:6px">Tujuan: Kalahkan semua Wave musuh, naikkan level, kumpulkan koin, dan beli item di Shop untuk semakin kuat!</p>
+<!-- ===== SETTINGS ===== -->
+<div id="settings-screen" class="subscreen hidden">
+  <div class="sub-title">SETTINGS</div>
+  <div class="sub-line"></div>
+  <div class="settings-grid">
+    <div class="setting-row">
+      <span class="setting-label">SOUND FX</span>
+      <div class="toggle-wrap">
+        <button class="tog-btn active" id="sfx-on"  onclick="setSFX(true)">ON</button>
+        <button class="tog-btn"        id="sfx-off" onclick="setSFX(false)">OFF</button>
       </div>
-
-      <!-- Kontrol -->
-      <div class="info-section">
-        <h3>⌨️ Kontrol Keyboard</h3>
-        <div class="info-controls">
-          <div class="ctrl-item"><span class="ctrl-key">W A S D</span><span class="ctrl-desc">Gerakkan karakter (bisa diagonal)</span></div>
-          <div class="ctrl-item"><span class="ctrl-key">↑←↓→</span><span class="ctrl-desc">Alternatif gerakan (Arrow Keys)</span></div>
-          <div class="ctrl-item"><span class="ctrl-key">SPACE</span><span class="ctrl-desc">Serang musuh (jika dalam jangkauan)</span></div>
-          <div class="ctrl-item"><span class="ctrl-key">J</span><span class="ctrl-desc">Alternatif Serang</span></div>
-          <div class="ctrl-item"><span class="ctrl-key">Q</span><span class="ctrl-desc">Gunakan HP Potion (pulihkan 40 HP)</span></div>
-          <div class="ctrl-item"><span class="ctrl-key">ESC</span><span class="ctrl-desc">Kembali ke Menu Utama</span></div>
-        </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">MUSIC</span>
+      <div class="toggle-wrap">
+        <button class="tog-btn active" id="mus-on"  onclick="setMusic(true)">ON</button>
+        <button class="tog-btn"        id="mus-off" onclick="setMusic(false)">OFF</button>
       </div>
-
-      <!-- Sistem AI FSM -->
-      <div class="info-section">
-        <h3>🤖 Sistem AI — Finite State Machine (FSM)</h3>
-        <p>Musuh memiliki 5 State dalam FSM yang menentukan perilakunya secara otomatis dan adaptif:</p>
-        <div class="fsm-diagram" style="margin:12px 0">
-          <span class="fsm-state" style="color:#aaa;border-color:#555">IDLE</span>
-          <span class="fsm-arrow">→</span>
-          <span class="fsm-state" style="color:#ffcc00;border-color:#ffcc0055">CHASE</span>
-          <span class="fsm-arrow">→</span>
-          <span class="fsm-state" style="color:#ff4444;border-color:#ff444455">ATTACK</span>
-          <span class="fsm-arrow">→</span>
-          <span class="fsm-state" style="color:#00ff88;border-color:#00ff8855">DODGE</span>
-          <span class="fsm-arrow">→</span>
-          <span class="fsm-state" style="color:#ffcc00;border-color:#ffcc0055">CHASE</span>
-          <span class="fsm-arrow">/ →</span>
-          <span class="fsm-state" style="color:#ff4444;border-color:#ff444455">DEAD</span>
-        </div>
-        <ul>
-          <li><strong style="color:#aaa">IDLE</strong> — Musuh diam menunggu; bobbing animasi. Aktif saat player jauh.</li>
-          <li><strong style="color:#ffcc00">CHASE</strong> — Musuh mengejar player ketika masuk radius deteksi.</li>
-          <li><strong style="color:#ff4444">ATTACK</strong> — Musuh menyerang saat sangat dekat dengan player.</li>
-          <li><strong style="color:#00ff88">DODGE</strong> — Musuh menghindar secara acak setelah menyerang (probabilistik).</li>
-          <li><strong style="color:#666">DEAD</strong> — Musuh mati, ledakan partikel, XP dan Koin di-drop.</li>
-        </ul>
-        <p style="margin-top:8px;color:rgba(150,190,255,.6);font-size:11px">State aktif musuh selalu ditampilkan di panel FSM (kanan bawah layar) secara real-time.</p>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">SFX VOLUME</span>
+      <div class="slider-wrap">
+        <input type="range" id="sfx-vol" min="0" max="100" value="70" oninput="Settings.sfxVol=this.value/100">
+        <span id="sfx-vol-label" style="font-size:.6rem;color:rgba(0,243,255,.7);width:28px;">70</span>
       </div>
-
-      <!-- Tipe Musuh -->
-      <div class="info-section">
-        <h3>👾 Tipe Musuh (Berdasarkan Wave)</h3>
-        <div class="enemy-types">
-          <div class="enemy-type-card" style="border-color:#cc220055">
-            <div class="etype-name" style="color:#ff5533">GRUNT</div>
-            <div class="etype-desc">Musuh standar. Wave 1–3. Seimbang antara HP, DMG, dan Speed.</div>
-          </div>
-          <div class="enemy-type-card" style="border-color:#cc00cc55">
-            <div class="etype-name" style="color:#ff44ff">SPEEDER</div>
-            <div class="etype-desc">Sangat cepat, HP rendah. Sering Dodge. Mulai Wave 3+.</div>
-          </div>
-          <div class="enemy-type-card" style="border-color:#cc660055">
-            <div class="etype-name" style="color:#ffcc44">TANK</div>
-            <div class="etype-desc">HP & DMG sangat tinggi, lambat. Jarang Dodge. Wave 4+.</div>
-          </div>
-          <div class="enemy-type-card" style="border-color:#00666655">
-            <div class="etype-name" style="color:#00ffee">PHANTOM</div>
-            <div class="etype-desc">Sangat sering Dodge. Licin dan sulit ditangkap. Wave 6+.</div>
-          </div>
-          <div class="enemy-type-card" style="border-color:#99000055">
-            <div class="etype-name" style="color:#ff3333">BERSERKER</div>
-            <div class="etype-desc">DMG sangat tinggi dan agresif. Sering menyerang. Wave 7+.</div>
-          </div>
-        </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">DIFFICULTY</span>
+      <div class="diff-row">
+        <button class="diff-btn2 easy active"  data-d="easy">EASY</button>
+        <button class="diff-btn2 medium"       data-d="medium">MED</button>
+        <button class="diff-btn2 hard"         data-d="hard">HARD</button>
       </div>
-
-      <!-- Sistem Progres -->
-      <div class="info-section">
-        <h3>📈 Sistem Progres</h3>
-        <ul>
-          <li><strong style="color:#aa44ff">XP & Level</strong> — Kamu mendapat XP setiap mengalahkan musuh. Level naik → HP max, ATK, dan Speed meningkat.</li>
-          <li><strong style="color:#ffd700">Koin</strong> — Reward setelah menang. Digunakan untuk membeli item di Shop.</li>
-          <li><strong style="color:#00ff88">HP Potion (🧪)</strong> — Pulihkan 40 HP di tengah pertarungan (tekan Q).</li>
-          <li><strong style="color:#ff8844">ATK Module (⚔️)</strong> — Tambah +5 Attack Damage permanen.</li>
-          <li><strong style="color:#44ccff">Speed Chip (👟)</strong> — Tambah +0.6 Speed permanen.</li>
-          <li><strong style="color:#8888ff">Nano Shield (🛡️)</strong> — Blok 1 serangan berikutnya dari musuh.</li>
-        </ul>
-      </div>
-
-      <!-- Tips -->
-      <div class="info-section">
-        <h3>💡 Tips Bermain</h3>
-        <ul>
-          <li>Jaga jarak saat musuh dalam state ATTACK — mundur dulu, serang setelah ia Dodge.</li>
-          <li>Gunakan HP Potion (Q) sebelum HP habis, bukan saat sudah kritis.</li>
-          <li>Beli Speed Chip di Shop untuk lebih mudah menghindari musuh cepat.</li>
-          <li>TANK musuh lambat tapi DMG-nya besar — jangan biarkan ia menyerang.</li>
-          <li>PHANTOM sangat sering Dodge — bersabar dan serang di saat ia berhenti Chase.</li>
-        </ul>
-      </div>
-
-      <div class="info-footer">
-        <button id="btn-info-back" class="btn-primary">← KEMBALI KE MENU</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">AI MONITOR</span>
+      <div class="toggle-wrap">
+        <button class="tog-btn active" id="mon-on"  onclick="setMonitor(true)">ON</button>
+        <button class="tog-btn"        id="mon-off" onclick="setMonitor(false)">OFF</button>
       </div>
     </div>
   </div>
+  <button class="back-btn" onclick="showMenu()">◀ BACK</button>
+</div>
 
-  <!-- ══════════ DIFFICULTY SELECT ══════════ -->
-  <div id="select-screen" class="screen hidden">
-    <div class="select-card">
-      <div class="select-title">⚙ PILIH KESULITAN</div>
-      <div class="diff-grid">
-        <button class="diff-btn" data-diff="easy">
-          <span class="diff-label">🟢</span>EASY
-          <span class="diff-desc">Musuh lambat &amp; jarang menyerang. Cocok untuk pemula.</span>
-        </button>
-        <button class="diff-btn active" data-diff="medium">
-          <span class="diff-label">🟡</span>MEDIUM
-          <span class="diff-desc">Seimbang. Musuh lebih agresif dan cepat.</span>
-        </button>
-        <button class="diff-btn" data-diff="hard">
-          <span class="diff-label">🔴</span>HARD
-          <span class="diff-desc">Musuh sangat cepat, agresif &amp; sering dodge.</span>
-        </button>
-      </div>
-      <div class="select-actions">
-        <button id="btn-back" class="btn-secondary">← BACK</button>
-        <button id="btn-start" class="btn-primary">MULAI BATTLE ▶</button>
-      </div>
+<!-- ===== INFO ===== -->
+<div id="info-screen" class="subscreen hidden">
+  <div class="sub-title">ABOUT &amp; HOW TO PLAY</div>
+  <div class="sub-line"></div>
+  <div class="info-wrap" style="overflow-y:auto;max-height:60vh;padding-right:8px;">
+    <div class="info-section">
+      <h3>PHILOSOPHY</h3>
+      <p>AI Arena Fighter adalah game pertarungan 1v1 berbasis web yang menampilkan musuh dengan kecerdasan buatan (AI) menggunakan metode <strong style="color:var(--neon-blue)">Finite State Machine (FSM)</strong>. Musuh tidak hanya menyerang — ia berpikir, bereaksi, dan beradaptasi terhadap setiap gerakanmu.</p>
+    </div>
+    <div class="info-section">
+      <h3>CONTROLS</h3>
+      <ul>
+        <li><span class="key-tag">W A S D</span> — Gerak karakter</li>
+        <li><span class="key-tag">SPACE</span> — Serang dengan pedang</li>
+        <li><span class="key-tag">SHIFT</span> — Dash / menghindari serangan</li>
+        <li><span class="key-tag">1</span> — Gunakan item slot 1</li>
+        <li><span class="key-tag">2</span> — Gunakan item slot 2</li>
+        <li><span class="key-tag">ESC</span> — Kembali ke menu</li>
+      </ul>
+    </div>
+    <div class="info-section">
+      <h3>AI FSM BEHAVIOR</h3>
+      <ul>
+        <li><strong style="color:#aaa">IDLE</strong> — Musuh berpatroli saat kamu jauh</li>
+        <li><strong style="color:#00f3ff">CHASE</strong> — Mengejar saat kamu terdeteksi</li>
+        <li><strong style="color:#ff8800">ATTACK</strong> — Menyerang dalam jarak dekat</li>
+        <li><strong style="color:#cc44ff">DODGE</strong> — Menghindar secara adaptif setelah serangan</li>
+        <li><strong style="color:#ff003c">DEAD</strong> — Musuh mati</li>
+      </ul>
+    </div>
+    <div class="info-section">
+      <h3>ITEM SYSTEM</h3>
+      <ul>
+        <li>Dapatkan <strong style="color:var(--neon-yellow)">Kredit (CR)</strong> setiap mengalahkan musuh</li>
+        <li>Beli item di <strong style="color:var(--neon-purple)">SHOP</strong> untuk keunggulan di arena</li>
+        <li>Gunakan item dengan tombol <span class="key-tag">1</span> / <span class="key-tag">2</span> saat bertarung</li>
+        <li>Item bisa dipakai ulang di setiap pertarungan setelah dibeli</li>
+      </ul>
+    </div>
+    <div class="info-section">
+      <h3>SCORING</h3>
+      <ul>
+        <li>Setiap hit ke enemy = <strong style="color:var(--neon-yellow)">+10 poin</strong></li>
+        <li>Combo bonus = <strong style="color:var(--neon-yellow)">+combo×5 poin</strong></li>
+        <li>Menang = <strong style="color:var(--neon-yellow)">bonus 500 poin + sisa HP×2</strong></li>
+        <li>Poin dikonversi ke <strong style="color:var(--neon-yellow)">Kredit</strong> di akhir pertarungan</li>
+      </ul>
     </div>
   </div>
+  <button class="back-btn" onclick="showMenu()">◀ BACK</button>
+</div>
 
-  <!-- ══════════ GAME SCREEN ══════════ -->
-  <div id="game-screen" class="screen hidden"></div>
+<!-- ===== SHOP ===== -->
+<div id="shop-screen" class="subscreen hidden">
+  <div class="sub-title">ITEM SHOP</div>
+  <div class="sub-line"></div>
+  <div class="shop-coins">◈ <span id="shop-coins-disp">0</span> CREDITS</div>
+  <div class="shop-grid" id="shop-grid"></div>
+  <button class="back-btn" onclick="showMenu()">◀ BACK</button>
+</div>
 
-  <!-- ══════════ SHOP SCREEN ══════════ -->
-  <div id="shop-screen" class="screen hidden">
-    <div class="shop-card">
-      <div class="shop-header">
-        <div>
-          <div class="shop-title">🛒 CYBER SHOP</div>
-          <div class="shop-wave-label" id="shop-wave">Sebelum Wave berikutnya</div>
-        </div>
-        <div class="shop-coins" id="shop-coins">Coins: 0 ¢</div>
+<!-- ===== GAME ===== -->
+<div id="game-screen" class="screen hidden">
+  <div id="game-ui">
+    <div class="hp-block">
+      <div class="hp-label-row">
+        <span class="hp-label">◈ PLAYER</span>
+        <span class="hp-text" id="p-hp-txt">100/100</span>
       </div>
-      <hr class="shop-divider"/>
-      <div id="shop-content"><!-- Items rendered by JS --></div>
-      <div class="shop-footer">
-        <button id="btn-shop-done" class="btn-primary">LANJUT KE WAVE BERIKUTNYA ▶</button>
+      <div class="hp-bar-wrap"><div class="hp-bar player" id="p-hp-bar" style="width:100%"></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+      <div class="vs-sep">VS</div>
+      <div style="font-size:.5rem;color:rgba(255,255,255,.3);letter-spacing:.1em;" id="timer-disp">00:00</div>
+    </div>
+    <div class="hp-block" style="text-align:right;">
+      <div class="hp-label-row" style="flex-direction:row-reverse;">
+        <span class="hp-label">ENEMY AI ◈</span>
+        <span class="hp-text" id="e-hp-txt">100/100</span>
       </div>
+      <div class="hp-bar-wrap"><div class="hp-bar enemy" id="e-hp-bar" style="width:100%;float:right;"></div></div>
     </div>
   </div>
+  <div style="display:flex;justify-content:space-between;width:100%;max-width:900px;padding:0 14px 4px;z-index:5;">
+    <div style="font-family:'Orbitron',sans-serif;font-size:.7rem;color:var(--neon-yellow);text-shadow:var(--glow-yellow);">SCORE: <span id="score-disp">0</span></div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:.7rem;color:var(--neon-green);text-shadow:var(--glow-green);letter-spacing:.15em;">LVL <span id="level-disp">1</span></div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:.7rem;color:rgba(0,243,255,.5);">DIFF: <span id="diff-disp">EASY</span></div>
+    <button
+      onclick="AudioEngine.stopMusic();showMenu();Game.running=false;"
+      style="font-family:'Orbitron',sans-serif;font-size:.55rem;padding:4px 10px;border:1px solid rgba(0,243,255,.3);background:transparent;color:rgba(0,243,255,.5);cursor:pointer;letter-spacing:.1em;display:none;"
+      id="mob-esc-btn">✕ MENU</button>
+  </div>
+  <div id="ai-monitor">
+    <div class="ai-mon-title">// AI FSM STATE //</div>
+    <div class="ai-row" id="ai-idle"><span>◦</span>IDLE</div>
+    <div class="ai-row" id="ai-chase"><span>◦</span>CHASE</div>
+    <div class="ai-row" id="ai-attack"><span>◦</span>ATTACK</div>
+    <div class="ai-row" id="ai-dodge"><span>◦</span>DODGE</div>
+    <div class="ai-row" id="ai-dead"><span>◦</span>DEAD</div>
+  </div>
+  <div id="item-slots"></div>
+  <div id="canvas-wrap"><canvas id="gc"></canvas></div>
+</div>
 
-</div><!-- #app -->
+<!-- ===== MOBILE CONTROLS ===== -->
+<div id="mobile-controls">
+  <div id="joystick-zone">
+    <div id="joystick-base"></div>
+    <div id="joystick-knob"></div>
+  </div>
+  <div id="action-btns">
+    <button class="mob-btn" id="btn-mob-atk"><span class="mob-icon">⚔️</span>ATK</button>
+    <button class="mob-btn" id="btn-mob-dash"><span class="mob-icon">💨</span>DASH</button>
+  </div>
+  <div id="item-row-btns">
+    <div class="mob-item-btn" id="mob-item-1"><span class="m-icon">○</span><span>[1]</span></div>
+    <div class="mob-item-btn" id="mob-item-2"><span class="m-icon">○</span><span>[2]</span></div>
+  </div>
+</div>
 
+<!-- ===== GAME OVER ===== -->
+<div id="gameover-screen" class="screen hidden">
+  <div style="font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.3em;color:rgba(0,243,255,.4);margin-bottom:4px;" id="res-level-tag">LEVEL 1</div>
+  <div class="result-title" id="res-title">VICTORY</div>
+  <div class="result-sub"   id="res-sub">ENEMY DEFEATED</div>
+  <div class="result-coins-earned" id="res-coins"></div>
+  <div class="result-stats">
+    <div class="stat-box"><div class="stat-val"      id="r-time">00:00</div><div class="stat-label">TIME</div></div>
+    <div class="stat-box"><div class="stat-val"      id="r-score">0</div>  <div class="stat-label">SCORE</div></div>
+    <div class="stat-box"><div class="stat-val"      id="r-hits">0</div>   <div class="stat-label">HITS</div></div>
+    <div class="stat-box"><div class="stat-val"      id="r-combo">0</div>  <div class="stat-label">BEST COMBO</div></div>
+    <div class="stat-box"><div class="stat-val gold" id="r-cr">+0 CR</div><div class="stat-label">CREDITS EARNED</div></div>
+  </div>
+  <div class="result-btns" id="result-btns">
+    <button class="menu-btn green" id="btn-next-level" style="display:none;">▶▶ NEXT LEVEL</button>
+    <button class="menu-btn"       id="btn-retry">↺ RETRY</button>
+    <button class="menu-btn"       id="btn-back-menu">⌂ MENU</button>
+  </div>
+</div>
+
+<!-- ===== SCRIPTS (load order matters) ===== -->
 <script src="input.js"></script>
+<script src="game.js"></script>
 <script src="player.js"></script>
 <script src="enemy.js"></script>
 <script src="ui.js"></script>
-<script src="game.js"></script>
 <script src="main.js"></script>
 </body>
 </html>

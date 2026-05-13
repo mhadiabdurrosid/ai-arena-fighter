@@ -1,215 +1,327 @@
-// player.js - Player with Level, XP, Items
-class Player {
-  constructor(x, y, saveData) {
-    this.x = x; this.y = y;
-    this.width = 42; this.height = 58;
-    this.baseSpeed = 4.5; this.speed = 4.5;
-    this.baseMaxHp = 100;
-    this.baseAttackDamage = 15;
-    this.attackRange = 72;
-    this.attackCooldownMax = 30;
-
-    // Progress (persists across waves)
-    this.level = saveData?.level || 1;
-    this.xp = saveData?.xp || 0;
-    this.xpToNext = this.calcXpToNext();
-    this.coins = saveData?.coins || 0;
-    this.kills = saveData?.kills || 0;
-    this.totalDamageDealt = saveData?.totalDamageDealt || 0;
-
-    // Items / buffs
-    this.items = saveData?.items || { hpPotions: 0, attackBoost: 0, speedBoost: 0, shield: 0 };
-    this.shieldActive = false;
-
-    // Per-battle state
-    this.maxHp = this.calcMaxHp();
-    this.hp = this.maxHp;
-    this.attackDamage = this.calcAttackDamage();
-    this.speed = this.calcSpeed();
-
-    this.attackCooldown = 0;
-    this.isAttacking = false; this.attackTimer = 0; this.attackDuration = 12;
-    this.facingRight = true;
-    this.isHurt = false; this.hurtTimer = 0; this.hurtDuration = 20;
-    this.isDead = false;
-    this.particles = []; this.trailPositions = [];
-    this.glowIntensity = 0;
-    this.idleTimer = 0;
-    // Potion cooldown UI
-    this.potionCooldown = 0;
+// ==============================================
+// PARTICLE CLASS
+// ==============================================
+class Particle {
+  constructor(x, y, color, options = {}) {
+    this.x = x; this.y = y; this.color = color;
+    this.vx = options.vx !== undefined ? options.vx : (Math.random() - 0.5) * 6;
+    this.vy = options.vy !== undefined ? options.vy : (Math.random() * -4 - 1);
+    this.life = options.life !== undefined ? options.life : (20 + Math.random() * 20);
+    this.maxLife = this.life;
+    this.size = options.size !== undefined ? options.size : (2 + Math.random() * 3);
+    this.gravity = options.gravity !== undefined ? options.gravity : 0.18;
+    this.shape = options.shape || 'circle';
+    this.rot = Math.random() * Math.PI * 2;
+    this.rotV = (Math.random() - 0.5) * 0.2;
   }
 
-  calcXpToNext() { return 80 + this.level * 40; }
-  calcMaxHp()  { return this.baseMaxHp  + (this.level - 1) * 12 + (this.items?.hpPotions || 0) * 0; } // potions used in battle
-  calcAttackDamage() { return this.baseAttackDamage + (this.level - 1) * 3 + (this.items?.attackBoost || 0) * 5; }
-  calcSpeed()  { return this.baseSpeed + (this.items?.speedBoost || 0) * 0.6; }
-
-  gainXP(amount) {
-    this.xp += amount;
-    let leveled = false;
-    while (this.xp >= this.xpToNext) {
-      this.xp -= this.xpToNext;
-      this.level++;
-      this.xpToNext = this.calcXpToNext();
-      this.maxHp = this.calcMaxHp();
-      this.hp = Math.min(this.hp + 30, this.maxHp); // heal on level up
-      this.attackDamage = this.calcAttackDamage();
-      this.speed = this.calcSpeed();
-      leveled = true;
-    }
-    return leveled;
-  }
-
-  usePotion() {
-    if (this.items.hpPotions > 0 && this.hp < this.maxHp && this.potionCooldown <= 0) {
-      this.items.hpPotions--;
-      this.hp = Math.min(this.maxHp, this.hp + 40);
-      this.potionCooldown = 60;
-      this.spawnHitParticles(this.cx(), this.cy(), '#00ff88');
-      return true;
-    }
-    return false;
-  }
-
-  getSaveData() {
-    return {
-      level: this.level, xp: this.xp, coins: this.coins,
-      kills: this.kills, totalDamageDealt: this.totalDamageDealt, items: this.items
-    };
-  }
-
-  update(input, cW, cH, enemy) {
-    if (this.isDead) { this.updateParticles(); return; }
-    if (this.isHurt) { this.hurtTimer--; if (this.hurtTimer <= 0) this.isHurt = false; }
-    if (this.potionCooldown > 0) this.potionCooldown--;
-    this.idleTimer++;
-
-    let vx = 0, vy = 0;
-    if (input.isDown('KeyA') || input.isDown('ArrowLeft'))  { vx -= this.speed; this.facingRight = false; }
-    if (input.isDown('KeyD') || input.isDown('ArrowRight')) { vx += this.speed; this.facingRight = true; }
-    if (input.isDown('KeyW') || input.isDown('ArrowUp'))    vy -= this.speed;
-    if (input.isDown('KeyS') || input.isDown('ArrowDown'))  vy += this.speed;
-    if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
-    this.x += vx; this.y += vy;
-
-    if (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1) {
-      this.trailPositions.unshift({ x: this.cx(), y: this.cy(), alpha: 0.4 });
-      if (this.trailPositions.length > 8) this.trailPositions.pop();
-    }
-    this.trailPositions.forEach(t => t.alpha -= 0.05);
-    this.trailPositions = this.trailPositions.filter(t => t.alpha > 0);
-
-    const pad = 20;
-    this.x = Math.max(pad, Math.min(cW - this.width - pad, this.x));
-    this.y = Math.max(pad + 55, Math.min(cH - this.height - pad - 25, this.y));
-
-    if (this.attackCooldown > 0) this.attackCooldown--;
-
-    // Use potion - Q key
-    if (input.wasJustPressed('KeyQ')) this.usePotion();
-
-    if ((input.wasJustPressed('Space') || input.wasJustPressed('KeyJ')) && this.attackCooldown === 0) {
-      this.isAttacking = true; this.attackTimer = this.attackDuration;
-      this.attackCooldown = this.attackCooldownMax; this.glowIntensity = 1.0;
-      if (enemy && !enemy.isDead) {
-        const dist = this.distanceTo(enemy);
-        if (dist < this.attackRange) {
-          const dmg = this.attackDamage;
-          enemy.takeDamage(dmg);
-          this.totalDamageDealt += dmg;
-          this.spawnHitParticles(enemy.cx(), enemy.cy(), '#00ffff');
-        }
-      }
-    }
-
-    if (this.attackTimer > 0) { this.attackTimer--; if (this.attackTimer <= 0) this.isAttacking = false; }
-    if (this.glowIntensity > 0) this.glowIntensity -= 0.05;
-    this.updateParticles();
-  }
-
-  takeDamage(amount) {
-    if (this.isDead) return;
-    if (this.shieldActive) { this.shieldActive = false; this.spawnHitParticles(this.cx(), this.cy(), '#8888ff'); return; }
-    this.hp = Math.max(0, this.hp - amount);
-    this.isHurt = true; this.hurtTimer = this.hurtDuration;
-    if (this.hp <= 0) { this.isDead = true; this.spawnDeathParticles(); }
-  }
-
-  cx() { return this.x + this.width / 2; }
-  cy() { return this.y + this.height / 2; }
-  distanceTo(o) { const dx = this.cx()-o.cx(), dy = this.cy()-o.cy(); return Math.sqrt(dx*dx+dy*dy); }
-
-  spawnHitParticles(x, y, color) {
-    for (let i = 0; i < 10; i++) {
-      const a = Math.random()*Math.PI*2, s = 2+Math.random()*4;
-      this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 1.0, decay: 0.06+Math.random()*0.04, size: 3+Math.random()*5, color });
-    }
-  }
-  spawnDeathParticles() {
-    for (let i = 0; i < 30; i++) {
-      const a = Math.random()*Math.PI*2, s = 1+Math.random()*6;
-      this.particles.push({ x: this.cx(), y: this.cy(), vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 1.0, decay: 0.02+Math.random()*0.03, size: 4+Math.random()*8, color: '#3a9bff' });
-    }
-  }
-  updateParticles() {
-    this.particles.forEach(p => { p.x+=p.vx; p.y+=p.vy; p.vx*=0.92; p.vy*=0.92; p.life-=p.decay; });
-    this.particles = this.particles.filter(p => p.life > 0);
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += this.gravity;
+    this.vx *= 0.97;
+    this.life--;
+    this.rot += this.rotV;
   }
 
   draw(ctx) {
-    this.trailPositions.forEach((t, i) => {
-      ctx.save(); ctx.globalAlpha = t.alpha;
-      const sc = 1-(i/this.trailPositions.length)*0.5;
-      this._drawBody(ctx, t.x-this.width*sc/2, t.y-this.height*sc/2, this.width*sc, this.height*sc, '#1a6bff', 0.3);
-      ctx.restore();
-    });
-    this._drawParticles(ctx);
-    if (this.isDead) return;
+    const a = this.life / this.maxLife;
     ctx.save();
-    if (this.isHurt && Math.floor(this.hurtTimer/3)%2===0) ctx.globalAlpha = 0.3;
-    if (this.glowIntensity > 0) { ctx.shadowColor='#00cfff'; ctx.shadowBlur=30*this.glowIntensity; }
-    this._drawBody(ctx, this.x, this.y, this.width, this.height, '#1a6bff', 1.0);
-    // Shield aura
-    if (this.shieldActive) {
-      ctx.save(); ctx.strokeStyle='rgba(150,150,255,0.7)'; ctx.lineWidth=3;
-      ctx.shadowColor='#8888ff'; ctx.shadowBlur=15;
-      ctx.beginPath(); ctx.arc(this.cx(), this.cy(), 32, 0, Math.PI*2); ctx.stroke();
-      ctx.restore();
-    }
-    if (this.isAttacking) {
-      const p = 1-this.attackTimer/this.attackDuration;
-      const aX = this.facingRight ? this.x+this.width : this.x;
-      ctx.save(); ctx.globalAlpha=1-p; ctx.strokeStyle='#00ffff'; ctx.lineWidth=3;
-      ctx.shadowColor='#00ffff'; ctx.shadowBlur=20;
-      ctx.beginPath(); ctx.arc(aX, this.cy(), this.attackRange*p, -Math.PI/3, Math.PI/3); ctx.stroke();
-      ctx.restore();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = this.color;
+    if (this.shape === 'spark') {
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rot);
+      ctx.fillRect(-this.size / 2, -this.size * 2, this.size, this.size * 4);
+    } else if (this.shape === 'ring') {
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size * (1 - a) * 20, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
+  }
+}
+
+// ==============================================
+// PLAYER
+// ==============================================
+class Player {
+  constructor(x, y, cw, ch) {
+    this.x = x; this.y = y; this.w = 34; this.h = 52;
+    this.cw = cw; this.ch = ch; this.groundY = ch - 80;
+    this.maxHp = 100; this.hp = 100;
+    this.baseSpeed = 4; this.speed = 4;
+    this.isDashing = false; this.dashTimer = 0; this.dashCooldown = 0;
+    this.isAttacking = false; this.attackTimer = 0; this.attackCooldown = 0;
+    this.attackRange = 72; this.baseAttackDmg = 12; this.attackDmg = 12;
+    this.facingRight = true;
+    this.hitFlash = 0; this.invincible = 0;
+    this.hitsLanded = 0; this.comboCount = 0; this.comboTimer = 0; this.bestCombo = 0;
+    this.score = 0;
+    this.bodyAngle = 0; this.armSwing = 0; this.walkCycle = 0;
+    // Items
+    this.shieldActive = false; this.shieldTimer = 0;
+    this.rageActive = false; this.rageTimer = 0;
+    this.burnTimer = 0;
+    this.itemCooldowns = [0, 0];
+    this.itemUseCounts = {};
+    // Weapon
+    this.weapon = null; this.swordAngle = 0;
+    // Passives
+    this.speedMult = 1; this.defMult = 1; this.dmgMult = 1; this.doubleChance = 0;
   }
 
-  _drawBody(ctx, x, y, w, h, color, alpha) {
-    ctx.save(); ctx.globalAlpha = alpha;
-    const grad = ctx.createLinearGradient(x,y,x+w,y+h);
-    grad.addColorStop(0,'#00aaff'); grad.addColorStop(0.5,color); grad.addColorStop(1,'#001a4d');
-    ctx.fillStyle=grad; ctx.shadowColor='#00cfff'; ctx.shadowBlur=15;
-    const cx = x+w/2;
-    ctx.beginPath(); ctx.arc(cx,y+14,13,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(x+w*0.15,y+22,w*0.7,h*0.5,5); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(x+w*0.1,y+h*0.68,w*0.3,h*0.32,4); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(x+w*0.6,y+h*0.68,w*0.3,h*0.32,4); ctx.fill();
-    ctx.fillStyle='#00ffff'; ctx.shadowColor='#00ffff'; ctx.shadowBlur=8;
-    ctx.beginPath(); ctx.arc(cx-4,y+13,3,0,Math.PI*2); ctx.arc(cx+4,y+13,3,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='rgba(0,255,255,0.5)'; ctx.lineWidth=1; ctx.shadowBlur=5;
-    ctx.beginPath(); ctx.moveTo(cx,y+26); ctx.lineTo(cx,y+h*0.65);
-    ctx.moveTo(cx-8,y+h*0.4); ctx.lineTo(cx+8,y+h*0.4); ctx.stroke();
-    ctx.restore();
-  }
-  _drawParticles(ctx) {
-    this.particles.forEach(p => {
-      ctx.save(); ctx.globalAlpha=p.life; ctx.fillStyle=p.color;
-      ctx.shadowColor=p.color; ctx.shadowBlur=10;
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2); ctx.fill();
-      ctx.restore();
+  get cx() { return this.x + this.w / 2; }
+  get cy() { return this.y + this.h / 2; }
+
+  applyEquipment() {
+    const w = Save.equippedSlots[0] ? ITEMS.find(i => i.id === Save.equippedSlots[0]) : null;
+    this.weapon = w;
+    this.dmgMult = w?.stat?.dmgMult || 1;
+    this.speedMult = 1; this.defMult = 1; this.doubleChance = 0;
+    ITEMS.filter(i => i.type === 'passive' && Save.ownedItems[i.id]).forEach(item => {
+      if (item.stat.speedMult)    this.speedMult    = item.stat.speedMult;
+      if (item.stat.defMult)      this.defMult      = item.stat.defMult;
+      if (item.stat.doubleChance) this.doubleChance = item.stat.doubleChance;
     });
+    this.speed     = this.baseSpeed * this.speedMult;
+    this.attackDmg = Math.round(this.baseAttackDmg * this.dmgMult);
+  }
+
+  update() {
+    if (this.hitFlash > 0)   this.hitFlash--;
+    if (this.invincible > 0) this.invincible--;
+    if (this.dashCooldown > 0)   this.dashCooldown--;
+    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (this.comboTimer > 0) this.comboTimer--;
+    else this.comboCount = 0;
+    if (this.shieldTimer > 0) this.shieldTimer--;
+    else this.shieldActive = false;
+    if (this.rageTimer > 0) {
+      this.rageTimer--;
+      if (this.rageTimer === 0) {
+        this.rageActive = false;
+        this.speed = this.baseSpeed * this.speedMult;
+        this.attackDmg = Math.round(this.baseAttackDmg * this.dmgMult);
+      }
+    }
+    if (this.itemCooldowns[0] > 0) this.itemCooldowns[0]--;
+    if (this.itemCooldowns[1] > 0) this.itemCooldowns[1]--;
+
+    let mx = 0, my = 0;
+    if (this.isDashing) {
+      this.dashTimer--;
+      mx = this.facingRight ? 10 : -10;
+      if (this.dashTimer <= 0) this.isDashing = false;
+    } else {
+      if (Input.isDown('KeyA') || Input.isDown('ArrowLeft'))  { mx -= this.speed; this.facingRight = false; }
+      if (Input.isDown('KeyD') || Input.isDown('ArrowRight')) { mx += this.speed; this.facingRight = true;  }
+      if (Input.isDown('KeyW') || Input.isDown('ArrowUp'))    my -= this.speed;
+      if (Input.isDown('KeyS') || Input.isDown('ArrowDown'))  my += this.speed;
+      if (Input.wasPressed('ShiftLeft') && this.dashCooldown <= 0) {
+        this.isDashing = true; this.dashTimer = 12; this.dashCooldown = 38;
+        AudioEngine.dash();
+      }
+    }
+
+    if (this.isAttacking) {
+      this.attackTimer--;
+      this.swordAngle = Math.sin((18 - this.attackTimer) * 0.25) * 1.8 - 0.3;
+      if (this.attackTimer <= 0) { this.isAttacking = false; this.swordAngle = 0; }
+    }
+    if (Input.wasPressed('Space') && this.attackCooldown <= 0) {
+      this.isAttacking = true; this.attackTimer = 18; this.attackCooldown = 20;
+      AudioEngine.swoosh();
+    }
+
+    // Item use
+    const slots = Save.equippedSlots;
+    if (Input.wasPressed('Digit1') && slots[1] && this.itemCooldowns[0] <= 0) this.useItem(0);
+    if (Input.wasPressed('Digit2') && slots[2] && this.itemCooldowns[1] <= 0) this.useItem(1);
+
+    this.x = Math.max(0, Math.min(this.cw - this.w, this.x + mx));
+    this.y = Math.max(0, Math.min(this.groundY - this.h, this.y + my));
+
+    if (mx !== 0 || my !== 0) { this.walkCycle += 0.18; this.bodyAngle = Math.sin(this.walkCycle) * 0.05; }
+    else this.bodyAngle *= 0.9;
+  }
+
+  useItem(slotIdx) {
+    const itemId = slotIdx === 0 ? Save.equippedSlots[1] : Save.equippedSlots[2];
+    if (!itemId) return;
+    const item = ITEMS.find(i => i.id === itemId);
+    if (!item) return;
+    const used = this.itemUseCounts[itemId] || 0;
+    if (used >= (item.uses || 1)) { showNotif('OUT OF USES', 'warn'); return; }
+    this.itemUseCounts[itemId] = used + 1;
+    this.itemCooldowns[slotIdx] = 120;
+    AudioEngine.useItem(item.id.includes('potion') ? 'heal' : item.id.includes('shield') ? 'shield' : 'rage');
+    if (item.stat.heal)   { this.hp = Math.min(this.maxHp, this.hp + item.stat.heal); showNotif(`+${item.stat.heal} HP RESTORED`, 'success'); }
+    if (item.stat.shield) { this.shieldActive = true; this.shieldTimer = item.stat.shield * 60; showNotif('SHIELD ACTIVE', 'success'); }
+    if (item.stat.rage)   { this.rageActive = true; this.rageTimer = item.stat.rage * 60; this.speed = this.baseSpeed * this.speedMult * 1.6; this.attackDmg = Math.round(this.baseAttackDmg * this.dmgMult * 1.5); showNotif('RAGE MODE!', 'success'); }
+  }
+
+  takeDamage(dmg) {
+    if (this.invincible > 0) return;
+    if (this.shieldActive) { this.shieldActive = false; this.shieldTimer = 0; showNotif('SHIELD BLOCKED!'); AudioEngine.hit(); return; }
+    const actual = Math.round(dmg * this.defMult);
+    this.hp = Math.max(0, this.hp - actual);
+    this.hitFlash = 14; this.invincible = 20;
+    AudioEngine.playerHurt();
+  }
+
+  isInAttackRange(enemy) {
+    if (!this.isAttacking || this.attackTimer !== 9) return false;
+    const dx = enemy.cx - this.cx, dy = enemy.cy - this.cy;
+    return Math.sqrt(dx * dx + dy * dy) < this.attackRange &&
+      ((this.facingRight && dx > 0) || (!this.facingRight && dx < 0));
+  }
+
+  addScore(pts) { this.score += pts; }
+
+  draw(ctx) {
+    const cx = this.cx, cy = this.cy;
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (!this.facingRight) ctx.scale(-1, 1);
+    ctx.rotate(this.bodyAngle);
+
+    const flash = this.hitFlash > 0 && this.hitFlash % 4 < 2;
+    ctx.globalAlpha = flash ? 0.5 : 1;
+
+    // Shield bubble
+    if (this.shieldActive) {
+      ctx.save();
+      ctx.globalAlpha = 0.25 + Math.sin(Date.now() * 0.01) * 0.1;
+      ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 0.08; ctx.fillStyle = '#00f3ff';
+      ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Rage aura
+    if (this.rageActive) {
+      ctx.save();
+      ctx.globalAlpha = 0.15 + Math.sin(Date.now() * 0.02) * 0.08;
+      ctx.fillStyle = '#ff8800';
+      ctx.beginPath(); ctx.arc(0, 2, 30, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Body glow
+    const bg = ctx.createRadialGradient(0, 0, 4, 0, 0, 30);
+    bg.addColorStop(0, this.rageActive ? 'rgba(255,136,0,0.18)' : 'rgba(0,180,255,0.14)');
+    bg.addColorStop(1, 'transparent');
+    ctx.fillStyle = bg; ctx.fillRect(-24, -32, 48, 64);
+
+    // Legs
+    const legOff = Math.sin(this.walkCycle) * 6;
+    ctx.fillStyle = this.rageActive ? '#774400' : '#005588';
+    ctx.fillRect(-12, 10, 10, 20 + legOff);
+    ctx.fillRect(2, 10, 10, 20 - legOff);
+    // Boots
+    if (Save.ownedItems['boots']) {
+      ctx.fillStyle = '#00cc88';
+      ctx.fillRect(-13, 26 + legOff, 11, 5);
+      ctx.fillRect(1, 26 - legOff, 11, 5);
+    }
+
+    // Body
+    const bodyColor = flash ? '#ffffff' : this.rageActive ? '#cc4400' : '#0088cc';
+    ctx.fillStyle = bodyColor; ctx.fillRect(-14, -16, 28, 26);
+    // Armor overlay
+    if (Save.ownedItems['armor']) {
+      ctx.fillStyle = 'rgba(150,150,255,0.25)'; ctx.fillRect(-14, -16, 28, 26);
+      ctx.strokeStyle = 'rgba(150,150,255,0.5)'; ctx.lineWidth = 1;
+      ctx.strokeRect(-14, -16, 28, 26);
+    }
+    // Chest detail
+    const cc = this.rageActive ? 'rgba(255,150,0,0.5)' : 'rgba(0,243,255,0.45)';
+    ctx.fillStyle = cc; ctx.fillRect(-7, -12, 14, 3); ctx.fillRect(-7, -6, 14, 3);
+
+    // Left arm
+    ctx.save(); ctx.translate(-17, -10); ctx.rotate(0.2);
+    ctx.fillStyle = this.rageActive ? '#993300' : '#006699';
+    ctx.fillRect(-4, 0, 8, 17); ctx.restore();
+
+    // Right arm + SWORD
+    ctx.save(); ctx.translate(17, -10); ctx.rotate(this.swordAngle - 0.2);
+    ctx.fillStyle = this.rageActive ? '#993300' : '#006699';
+    ctx.fillRect(-4, 0, 8, 17);
+    this._drawSword(ctx, 0, 17);
+    if (this.isAttacking) {
+      ctx.fillStyle = this.rageActive ? 'rgba(255,150,0,0.6)' : 'rgba(0,243,255,0.55)';
+      ctx.beginPath(); ctx.arc(0, 28, 14, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    // Head
+    ctx.fillStyle = flash ? '#ffffff' : this.rageActive ? '#cc3300' : '#00aadd';
+    ctx.fillRect(-11, -32, 22, 18);
+    // Visor
+    ctx.fillStyle = this.rageActive ? 'rgba(255,100,0,0.8)' : 'rgba(0,243,255,0.75)';
+    ctx.fillRect(-9, -28, 18, 6);
+    ctx.fillStyle = this.rageActive ? 'rgba(255,150,0,0.3)' : 'rgba(0,243,255,0.25)';
+    ctx.fillRect(-9, -28, 18, 6);
+
+    // Dash trail
+    if (this.isDashing) {
+      for (let i = 1; i <= 4; i++) {
+        ctx.globalAlpha = 0.07 * (5 - i);
+        ctx.fillStyle = this.rageActive ? '#ff8800' : '#00f3ff';
+        ctx.fillRect(-14 + i * 5 * (!this.facingRight ? 1 : -1), -16, 28, 26);
+      }
+    }
+
+    ctx.globalAlpha = 1; ctx.restore();
+
+    // Attack arc indicator
+    if (this.isAttacking) {
+      ctx.save(); ctx.translate(cx, cy);
+      if (!this.facingRight) ctx.scale(-1, 1);
+      const prog = 1 - this.attackTimer / 18;
+      ctx.beginPath(); ctx.arc(0, 0, this.attackRange, -0.7 + prog * 0.5, 0.7 - prog * 0.5);
+      const ac = this.rageActive ? `rgba(255,136,0,${0.2 + prog * 0.3})` : `rgba(0,243,255,${0.2 + prog * 0.3})`;
+      ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  _drawSword(ctx, x, y) {
+    const wid = this.weapon;
+    const baseColor  = wid?.id === 'sword_fire' ? '#ff4400' : wid?.id === 'sword_blue' ? '#00aaff' : '#8888aa';
+    const glowColor  = wid?.id === 'sword_fire' ? '#ff8800' : wid?.id === 'sword_blue' ? '#00f3ff' : '#aaaacc';
+    ctx.save(); ctx.translate(x, y + 2);
+    // Hilt
+    ctx.fillStyle = '#334455'; ctx.fillRect(-5, 0, 10, 8);
+    ctx.fillStyle = '#556677'; ctx.fillRect(-7, 3, 14, 3);
+    // Blade
+    const blen = wid ? 36 : 28;
+    ctx.fillStyle = baseColor;
+    ctx.beginPath();
+    ctx.moveTo(-3, 8); ctx.lineTo(3, 8);
+    ctx.lineTo(1, 8 + blen); ctx.lineTo(-1, 8 + blen);
+    ctx.closePath(); ctx.fill();
+    // Edge highlight
+    ctx.fillStyle = glowColor;
+    ctx.beginPath();
+    ctx.moveTo(-1, 8); ctx.lineTo(1, 8);
+    ctx.lineTo(0.5, 8 + blen); ctx.lineTo(-0.5, 8 + blen);
+    ctx.closePath(); ctx.fill();
+    // Glow
+    if (wid) {
+      ctx.shadowColor = glowColor; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(0, 8 + blen);
+      ctx.strokeStyle = glowColor + '88'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
   }
 }
